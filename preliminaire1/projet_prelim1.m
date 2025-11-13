@@ -45,7 +45,7 @@ DSP_th = sigma2* ones(1,2*N -1);
 
 %spectres de puissance
 spectre_puissance = fft(bruit, 2*N-1);
-spectre_puissance = abs(spectre_puissance).^2;
+spectre_puissance = (1/2*N-1)*abs(spectre_puissance).^2;
 spectre_puissance = abs(fftshift(spectre_puissance));
 
 %représentation des spectres et dsp
@@ -93,6 +93,7 @@ title('Correlogramme');
 nbr_reps = 10;
 platitude_spectrale = zeros(1, nbr_reps);
 platitude_spectrale_welch = zeros(1, nbr_reps);
+platitude_spectrale_theorique = zeros(1, nbr_reps);
 platitude_spectrale_ordrep = zeros(1, nbr_reps);
 
 for j = 1:nbr_reps
@@ -101,24 +102,38 @@ for j = 1:nbr_reps
     bruit = m + sqrt(sigma2)*randn(1,N);
     %spectres de puissance
     spectre_puissance = fft(bruit, 2*N-1);
-    spectre_puissance = abs(spectre_puissance).^2;
+    spectre_puissance = (1/2*N-1)*abs(spectre_puissance).^2;
     spectre_puissance = abs(fftshift(spectre_puissance));
     %Periodogramme de Welch
     Welch = Perio_Welch(bruit, NFFT);
-    
-    %Moyenne arithmétique
-    moy_arith = 0;
+
+    %Moyenne arithmétique (spectre)
+    moy_arith_s = 0;
     for i = 1:length(spectre_puissance)
-        moy_arith = moy_arith + spectre_puissance(i);
+        moy_arith_s = moy_arith_s + spectre_puissance(i);
     end
-    moy_arith = moy_arith / length(spectre_puissance);
+    moy_arith_s = moy_arith_s / length(spectre_puissance);
+
+    %Moyenne arithmétique (welch)
+    moy_arith_w = 0;
+    for i = 1:length(Welch)
+        moy_arith_w = moy_arith_w + Welch(i);
+    end
+    moy_arith_w = moy_arith_w / length(Welch);
     
-    %Moyenne géométrique
-    moy_geo = 1;
+    %Moyenne géométrique (spectre)
+    moy_geo_s = 1;
     for i = 1:length(spectre_puissance)
-        moy_geo = moy_geo * spectre_puissance(i);
+        moy_geo_s = moy_geo_s * spectre_puissance(i);
     end
-    moy_geo = moy_geo^(1/length(spectre_puissance));
+    moy_geo_s = moy_geo_s^(1/length(spectre_puissance));
+
+    %Moyenne géométrique (welch)
+    moy_geo_w = 1;
+    for i = 1:length(Welch)
+        moy_geo_w = moy_geo_w * Welch(i);
+    end
+    moy_geo_w = moy_geo_w^(1/length(Welch));
 
     %Moyenne d'ordre p
     p = 2;
@@ -129,12 +144,25 @@ for j = 1:nbr_reps
     moy_p = moy_p / length(spectre_puissance);
     moy_p = moy_p^(1/p);
     
-    platitude_spectrale(j) = moy_geo / moy_arith;
-    platitude_spectrale_ordrep(j) = moy_p / moy_arith;
+    platitude_spectrale(j) = moy_geo_s / moy_arith_s;
+    platitude_spectrale_ordrep(j) = moy_p / moy_arith_s;
+    platitude_spectrale_welch(j) = moy_geo_w / moy_arith_w;
 end
 
 
+moy_plat_spectrale = 0;
+moy_plat_spectrale_welch = 0;
+moy_plat_spectrale_p = 0;
 
+for j = 1:nbr_reps
+    moy_plat_spectrale = moy_plat_spectrale + platitude_spectrale(j)/nbr_reps;
+    moy_plat_spectrale_welch = moy_plat_spectrale_welch + platitude_spectrale_welch(j)/nbr_reps;
+    moy_plat_spectrale_p = moy_plat_spectrale_p + platitude_spectrale_ordrep(j)/nbr_reps;
+end
+
+moy_plat_spectrale_p
+moy_plat_spectrale
+moy_plat_spectrale_welch
 
 
     
