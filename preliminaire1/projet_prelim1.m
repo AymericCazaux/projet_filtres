@@ -45,8 +45,8 @@ DSP_th = sigma2* ones(1,2*N -1);
 
 %spectres de puissance
 spectre_puissance = fft(bruit, 2*N-1);
-spectre_puissance = (1/2*N-1)*abs(spectre_puissance).^2;
-spectre_puissance = abs(fftshift(spectre_puissance));
+spectre_puissance = (1/(2*N-1))*abs(spectre_puissance).^2;
+spectre_puissance = fftshift(spectre_puissance);
 
 %représentation des spectres et dsp
 figure;
@@ -102,8 +102,8 @@ for j = 1:nbr_reps
     bruit = m + sqrt(sigma2)*randn(1,N);
     %spectres de puissance
     spectre_puissance = fft(bruit, 2*N-1);
-    spectre_puissance = (1/2*N-1)*abs(spectre_puissance).^2;
-    spectre_puissance = abs(fftshift(spectre_puissance));
+    spectre_puissance = (1/(2*N-1))*abs(spectre_puissance).^2;
+    spectre_puissance = fftshift(spectre_puissance);
     %Periodogramme de Welch
     Welch = Perio_Welch(bruit, NFFT);
 
@@ -135,7 +135,7 @@ for j = 1:nbr_reps
     end
     moy_geo_w = moy_geo_w^(1/length(Welch));
 
-    %Moyenne d'ordre p
+    %Moyenne d ordre p
     p = 2;
     moy_p = 0;
     for i =1:length(spectre_puissance)
