@@ -1,3 +1,4 @@
+clear; clc; close all;
 Fs = 8000; 
 load('fcno03fz.mat');
 
@@ -101,7 +102,17 @@ end
 
 eps_val = 1e-12;                
 w_sum(w_sum < eps_val) = eps_val;
-y = y ./ w_sum;
+for j = 1:length(s)
+    if (w_sum(j) ~= eps_val)
+        y(j) = y(j) / w_sum(j);
+    end
+end
+% y = y ./ w_sum;
+for i = 1:nbr_trames
+    if (abs(y(i)) > 30000)
+        y(i) = 0;
+    end
+end
 y(~isfinite(y)) = 0;
 
 % Paramètres pour le Spectrogramme
@@ -118,12 +129,15 @@ xlabel('temps (s)');
 ylabel('Amplitude');
 title("Signal temporel réhaussé");
 
-% subplot(3,1,2);
-% spectrogram(y, hamming(win_len), overlap, nfft, Fs, 'yaxis');
-% title('Spectrogramme');
+subplot(3,1,2);
+spectrogram(y, hamming(win_len), overlap, nfft, Fs, 'yaxis');
+title('Spectrogramme');
 
 subplot(3,1,3);
 plot(t, s-y);
+xlabel('temps (s)');
+ylabel('Amplitude');
+title("diff");
 
 
 
