@@ -1,18 +1,19 @@
-function y = Perio_Welch(x, NFFT)
+function Pxx = Perio_Welch(x, NFFT)   
+
+    Nw = floor(NFFT/2);     % longueur des segments
+    R  = floor(Nw/2);       % recouvrement 50%
+    w  = hann(Nw)';         % fenêtre Hann
+    K  = floor((length(x)-Nw)/R) + 1;
     
-    %Nombre de segments
-    L = floor(length(x)/floor(NFFT/2));
-    L = L-1;
-
-    %Initialisation
-    y = zeros(1, NFFT);
-
-    for i = 1:L
-        segment = x((i-1)*floor(NFFT/2) + 1 : (i+1)*floor(NFFT/2));
-        fft_seg = fft(segment, NFFT);
-        Perio_x = (abs(fft_seg).^2) /NFFT;
-        y = y + Perio_x;
+    Pxx = zeros(1, NFFT);
+    
+    for k = 1:K
+        idx = (k-1)*R + (1:Nw);
+        segment = x(idx) .* w;
+        Xk = fft(segment, NFFT);
+        Pxx = Pxx + abs(Xk).^2 / (sum(w.^2)); % normalisation 
     end
-    y = y/L;
+
+    Pxx = Pxx / K;
 
 end

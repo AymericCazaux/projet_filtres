@@ -15,8 +15,8 @@ bruit=P_bruit*randn(size(s));
 signal_bruite=s+bruit;
 
 % Découpage en trames
-pas = floor(length(signal_bruite)/10); %pas entre chaque trame
-n_s = floor(2*pas); %recouvrement à 50%
+n_s = round(0.03 * Fs);   % trames de 30 ms
+pas = round(n_s / 2);     % recouvrement 50 %
 NFFT = 2*n_s-1;
 N_welch = floor(n_s/10);
 
@@ -35,6 +35,9 @@ spectres_puissances_origin = zeros (nbr_trames, NFFT);
 spectres_puissances_bruite = zeros (nbr_trames, NFFT);
 spectres_puissances_rehausse = zeros (nbr_trames, NFFT);
 
+%Estimation de la DSP du bruit
+DSP_welch = Perio_Welch(bruit, NFFT);
+
 for i=1:nbr_trames
     % décomposition et fenetrage
     x_trames_bruite(i, :) = signal_bruite((i-1)*pas+1 : (i-1)*pas + n_s) .* w;
@@ -43,28 +46,23 @@ for i=1:nbr_trames
     %calcul des spectres de puissance (original et bruité)
     spectres_puissances_origin(i,:) = fft(x_trames_origin(i,:), NFFT);
     spectres_puissances_origin(i,:) = (1/NFFT)*abs(spectres_puissances_origin(i,:)).^2;
-    spectres_puissances_origin(i,:) = fftshift(spectres_puissances_origin(i,:));
 
     spectres_puissances_bruite(i,:) = fft(x_trames_bruite(i,:), NFFT);
     spectres_puissances_bruite(i,:) = (1/NFFT)*abs(spectres_puissances_bruite(i,:)).^2;
-    spectres_puissances_bruite(i,:) = fftshift(spectres_puissances_bruite(i,:));
-
-    %Estimation de la DSP du bruit
-    DSP_welch = Perio_Welch(bruit, NFFT);
 
     %Spectre réhaussé
     for j = 1:NFFT
-        spectres_puissances_rehausse(i,j) = spectres_puissances_bruite(i,j) - fftshift(DSP_welch(j));
+        spectres_puissances_rehausse(i,j) = spectres_puissances_bruite(i,j) - DSP_welch(j);
         if (spectres_puissances_rehausse(i,j) < 0)
             spectres_puissances_rehausse(i,j) = 0;
         end
     end
-    phase_bruite = angle(fftshift(fft(x_trames_bruite(i,:), NFFT))); %phase du signal bruite
-    TF_signal_rehausse = spectres_puissances_rehausse(i,:) .* exp(1j * phase_bruite); %TF du signal rehausse
+    phase_bruite = angle(fft(x_trames_bruite(i,:), NFFT)); %phase du signal bruite
+    TF_signal_rehausse = sqrt(NFFT * spectres_puissances_rehausse(i,:)) .* exp(1j * phase_bruite); %TF du signal rehausse
 
     %Calcul du signal temporel rehausse
-    TF_signal_rehausse = ifftshift(TF_signal_rehausse);
-    x_trames_rehausse(i,:) = real(ifft(TF_signal_rehausse, n_s));
+    x_temp = real(ifft(TF_signal_rehausse, NFFT));
+    x_trames_rehausse(i,:) = x_temp(1:n_s);
 end
 
 % Représentations
@@ -78,20 +76,33 @@ plot(time_axis, x_trames_bruite(floor(nbr_trames/2),:), "green");
 plot(time_axis, x_trames_rehausse(floor(nbr_trames/2),:), "blue");
 hold off;
 title('Représentation des signaux temporels');
+legend('Signal original', 'Signal bruité', 'Signal rehaussé');
+
 
 figure;
-plot(freq_axis, spectres_puissances_origin(floor(nbr_trames/2),:), "red");
+plot(freq_axis, fftshift(spectres_puissances_origin(floor(nbr_trames/2),:)), "red");
 hold on;
-plot(freq_axis, spectres_puissances_bruite(floor(nbr_trames/2),:), "green");
-plot(freq_axis, spectres_puissances_rehausse(floor(nbr_trames/2),:), "blue");
+plot(freq_axis, fftshift(spectres_puissances_bruite(floor(nbr_trames/2),:)), "green");
+plot(freq_axis, fftshift(spectres_puissances_rehausse(floor(nbr_trames/2),:)), "blue");
 hold off;
 title('Représentation des spectres de puissance');
+legend('Signal original', 'Signal bruité', 'Signal rehaussé');
+
 
 %addition recouvrement
-y = zeros(1, length(s));
-for i=1:nbr_trames
-    y((i-1)*pas+1 : (i-1)*pas + n_s) = y((i-1)*pas+1 : (i-1)*pas + n_s) + x_trames_rehausse(i, :);
+y = zeros(1,length(s));
+w_sum = zeros(1,length(s));
+
+for i = 1:nbr_trames
+    idx = (i-1)*pas+1 : (i-1)*pas + n_s;
+    y(idx) = y(idx) + x_trames_rehausse(i,:);
+    w_sum(idx) = w_sum(idx) + w;       % fenêtre de Hann
 end
+
+eps_val = 1e-12;                
+w_sum(w_sum < eps_val) = eps_val;
+y = y ./ w_sum;
+y(~isfinite(y)) = 0;
 
 % Paramètres pour le Spectrogramme
 win_len = round(0.030 * Fs); % 30ms
@@ -107,9 +118,9 @@ xlabel('temps (s)');
 ylabel('Amplitude');
 title("Signal temporel réhaussé");
 
-subplot(3,1,2);
-spectrogram(s, hamming(win_len), overlap, nfft, Fs, 'yaxis');
-title('Spectrogramme');
+% subplot(3,1,2);
+% spectrogram(y, hamming(win_len), overlap, nfft, Fs, 'yaxis');
+% title('Spectrogramme');
 
 subplot(3,1,3);
 plot(t, s-y);
